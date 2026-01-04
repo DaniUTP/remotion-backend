@@ -7,7 +7,11 @@ const os = require('os');
 const cors = require('cors');
 const axios = require('axios');
 require('dotenv').config();
-
+console.log("Cargando datos del .env:");
+console.log("CLOUDINARY_CLOUD_NAME: ", process.env.CLOUDINARY_CLOUD_NAME);
+console.log("CLOUDINARY_API_KEY: ", process.env.CLOUDINARY_API_KEY);
+console.log("CLOUDINARY_API_SECRET: ", process.env.CLOUDINARY_API_SECRET);
+console.log("ELEVENLABS_API_KEY: ", process.env.ELEVENLABS_API_KEY);
 const {
     createJob,
     getJob,
