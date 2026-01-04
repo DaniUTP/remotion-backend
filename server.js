@@ -24,24 +24,28 @@ const app = express();
 app.use(express.json());
 
 /* -------------------------
-   CORS
+   CORS (MAKE FRIENDLY)
 -------------------------- */
-const allowedOrigins = [
-    'http://127.0.0.1:5500',
-    'http://localhost:5500',
-    'http://localhost:8000',
-    'http://localhost:3000'
-];
-
 app.use(cors({
     origin: function (origin, callback) {
+        // Make / Postman / curl -> sin origin
         if (!origin) return callback(null, true);
-        if (!allowedOrigins.includes(origin)) {
-            return callback(new Error('Not allowed by CORS'), false);
+
+        const allowedOrigins = [
+            'http://127.0.0.1:5500',
+            'http://localhost:5500',
+            'http://localhost:8000',
+            'http://localhost:3000'
+        ];
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
         }
-        return callback(null, true);
+
+        return callback(new Error('Not allowed by CORS'), false);
     },
-    credentials: true
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 
 app.options('*', cors());
@@ -75,7 +79,7 @@ app.use('/app', express.static(path.join(__dirname, 'client')));
 app.use(express.static(path.join(__dirname, 'build')));
 
 /* -------------------------
-   HELPERS ELEVENLABS
+   ELEVENLABS HELPERS
 -------------------------- */
 async function elevenLabsTTS(text) {
     const response = await axios.post(
@@ -135,25 +139,25 @@ app.post('/api/generate-audios', async (req, res) => {
             const text = `
 ${item.text}
 
-Opción A: ${item.a}
-Opción B: ${item.b}
-Opción C: ${item.c}
-Opción D: ${item.d}
+A) ${item.a}
+B) ${item.b}
+C) ${item.c}
+D) ${item.d}
             `.trim();
 
-            console.log(`🎙 Generando audio ID ${item.id}`);
+            console.log(`🎙 Generando audio ${item.id}`);
 
             const audioBuffer = await elevenLabsTTS(text);
 
-            const upload = await uploadAudioToCloudinary(
+            const uploadResult = await uploadAudioToCloudinary(
                 audioBuffer,
                 `tts_${item.id}_${Date.now()}`
             );
 
             audios.push({
                 id: item.id,
-                audioUrl: upload.secure_url,
-                publicId: upload.public_id
+                audioUrl: uploadResult.secure_url,
+                publicId: uploadResult.public_id
             });
         }
 
@@ -173,7 +177,7 @@ Opción D: ${item.d}
 });
 
 /* -------------------------
-   API: UPLOAD FILE
+   UPLOAD FILE
 -------------------------- */
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
@@ -232,7 +236,7 @@ async function processJob(job) {
 
         updateJob(id, { status: 'uploading' });
 
-        const upload = await cloudinary.uploader.upload(outputLocation, {
+        const uploadResult = await cloudinary.uploader.upload(outputLocation, {
             resource_type: 'video',
             public_id: `job-${id}`
         });
@@ -241,7 +245,7 @@ async function processJob(job) {
 
         updateJob(id, {
             status: 'done',
-            videoUrl: upload.secure_url
+            videoUrl: uploadResult.secure_url
         });
 
     } catch (err) {
