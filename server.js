@@ -125,6 +125,13 @@ function uploadAudioToCloudinary(buffer, publicId) {
 /* -------------------------
    API: GENERAR AUDIOS (MAKE)
 -------------------------- */
+const EXPLANATION_AUDIOS = {
+    a: 'https://res.cloudinary.com/dly4rnmgh/video/upload/v1767543794/la_a_r14zgs.mp3',
+    b: 'https://res.cloudinary.com/dly4rnmgh/video/upload/v1767543794/la_b_d7zvt5.mp3',
+    c: 'https://res.cloudinary.com/dly4rnmgh/video/upload/v1767543794/la_c_ynwh6k.mp3',
+    d: 'https://res.cloudinary.com/dly4rnmgh/video/upload/v1767543794/la_d_syoc9q.mp3'
+};
+
 app.post('/api/generate-audios', async (req, res) => {
     try {
         const { items } = req.body;
@@ -133,48 +140,75 @@ app.post('/api/generate-audios', async (req, res) => {
             return res.status(400).json({ error: 'items must be an array' });
         }
 
-        const audios = [];
+        const results = [];
 
-        for (const item of items) {
-            const text = `
-${item.text}
+        for (const row of items) {
+            // 🔹 Mapeo por índice (Google Sheets / Make)
+            const id_question = row[0];
+            const question = row[1];
+            const options = [row[2], row[3], row[4], row[5]];
+            const correctLetter = String(row[6]).toLowerCase(); // a | b | c | d
+            const imagePath = row[7];
 
-A) ${item.a}
-B) ${item.b}
-C) ${item.c}
-D) ${item.d}
+            const correctIndexMap = { a: 0, b: 1, c: 2, d: 3 };
+            const correctIndex = correctIndexMap[correctLetter];
+
+            if (correctIndex === undefined) {
+                throw new Error(`Respuesta correcta inválida en pregunta ${id_question}`);
+            }
+
+            // 🔹 Texto de narración
+            const narrationText = `
+${question}
+
+A) ${options[0]}
+B) ${options[1]}
+C) ${options[2]}
+D) ${options[3]}
             `.trim();
 
-            console.log(`🎙 Generando audio ${item.id}`);
+            console.log(`🎙 Generando audio pregunta ${id_question}`);
 
-            const audioBuffer = await elevenLabsTTS(text);
+            // 🔹 Generar narración
+            const audioBuffer = await elevenLabsTTS(narrationText);
 
+            // 🔹 Subir narración
             const uploadResult = await uploadAudioToCloudinary(
                 audioBuffer,
-                `tts_${item.id}_${Date.now()}`
+                `question_${id_question}_${Date.now()}`
             );
 
-            audios.push({
-                id: item.id,
-                audioUrl: uploadResult.secure_url,
-                publicId: uploadResult.public_id
+            // 🔹 Duración aproximada
+            const wordCount = narrationText.split(/\s+/).length;
+            const narrationSeconds = Math.ceil((wordCount / 150) * 60);
+
+            // ✅ AUDIO DE EXPLICACIÓN RESUELTO AQUÍ
+            const explanationAudioUrl = EXPLANATION_AUDIOS[correctLetter];
+
+            results.push({
+                question,
+                image: `https://media.autocheckapp.pe/1M4G3QU1Z/${imagePath}`,
+                options,
+                correctIndex,
+                countdownSeconds: narrationSeconds + 5,
+                revealSeconds: 2,
+                narrationUrl: uploadResult.secure_url,
+                explanationAudioUrl // 👈 YA RESUELTO
             });
         }
 
-        res.json({
-            success: true,
-            count: audios.length,
-            audios
-        });
+        res.json(results);
 
     } catch (err) {
-        console.error('❌ Error TTS:', err.response?.data || err.message);
+        console.error('❌ Error TTS:', err.message);
         res.status(500).json({
             error: 'Audio generation failed',
-            detail: err.response?.data || err.message
+            detail: err.message
         });
     }
 });
+
+
 
 /* -------------------------
    UPLOAD FILE
