@@ -85,28 +85,29 @@ app.use(express.static(path.join(__dirname, 'build')));
 /* -------------------------
    ELEVENLABS HELPERS
 -------------------------- */
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
+
+const elevenlabs = new ElevenLabsClient({
+    apiKey: process.env.ELEVENLABS_API_KEY,
+});
+
 async function elevenLabsTTS(text) {
-    const response = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}`,
+    const audio = await elevenlabs.textToSpeech.convert(
+        ELEVEN_VOICE_ID,
         {
             text,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: {
-                stability: 0.4,
-                similarity_boost: 0.8
-            }
-        },
-        {
-            headers: {
-                'xi-api-key': process.env.ELEVENLABS_API_KEY,
-                'Content-Type': 'application/json',
-                'Accept': 'audio/mpeg'
-            },
-            responseType: 'arraybuffer'
+            modelId: 'eleven_multilingual_v2',
+            outputFormat: 'mp3_44100_128'
         }
     );
 
-    return response.data;
+    // audio es un AsyncIterable<Uint8Array>
+    const chunks = [];
+    for await (const chunk of audio) {
+        chunks.push(chunk);
+    }
+
+    return Buffer.concat(chunks);
 }
 
 function uploadAudioToCloudinary(buffer, publicId) {
