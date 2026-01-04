@@ -1,0 +1,21 @@
+{
+  "name": "video-render-server",
+  "version": "1.0.0",
+  "description": "Backend to render Remotion videos and upload to Cloudinary",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "cloudinary": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "install": "^0.13.0",
+    "multer": "^2.0.2",
+    "redis": "^5.10.0",
+    "remotion": "^4.0.0"
+  }
+}
