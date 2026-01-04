@@ -360,4 +360,5 @@ module.exports = {
     MAX_JOB_AGE_HOURS,
     // Exportar cliente para operaciones avanzadas
     getRedisClient: () => redisClient
+
 };
