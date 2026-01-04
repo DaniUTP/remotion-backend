@@ -110,7 +110,7 @@ function uploadAudioToCloudinary(buffer, publicId) {
         cloudinary.uploader.upload_stream(
             {
                 resource_type: 'video',
-                folder: 'elevenlabs/audio',
+                folder: '',
                 public_id: publicId,
                 format: 'mp3'
             },
@@ -143,21 +143,41 @@ app.post('/api/generate-audios', async (req, res) => {
         const results = [];
 
         for (const row of items) {
-            // 🔹 Mapeo por índice (Google Sheets / Make)
-            const id_question = row[0];
-            const question = row[1];
-            const options = [row[2], row[3], row[4], row[5]];
-            const correctLetter = String(row[6]).toLowerCase(); // a | b | c | d
-            const imagePath = row[7];
+
+            // 🟢 Make manda objetos con keys "0","1","2",...
+            const id_question = row["0"];
+            const question = row["1"];
+
+            const options = [
+                row["2"],
+                row["3"],
+                row["4"],
+                row["5"]
+            ];
+
+            const correctLetterRaw = row["7"];
+            const imagePathRaw = row["8"];
+
+            if (!correctLetterRaw) {
+                throw new Error(`Respuesta correcta faltante en pregunta ${id_question}`);
+            }
+
+            const correctLetter = String(correctLetterRaw).toLowerCase();
 
             const correctIndexMap = { a: 0, b: 1, c: 2, d: 3 };
             const correctIndex = correctIndexMap[correctLetter];
 
             if (correctIndex === undefined) {
-                throw new Error(`Respuesta correcta inválida en pregunta ${id_question}`);
+                throw new Error(`Respuesta correcta inválida (${correctLetter}) en pregunta ${id_question}`);
             }
 
-            // 🔹 Texto de narración
+            // 🖼️ Imagen: solo si hay path válido
+            let image = "";
+            if (imagePathRaw && imagePathRaw !== "NULL" && imagePathRaw !== "null") {
+                image = `https://media.autocheckapp.pe/1M4G3QU1Z/${imagePathRaw}`;
+            }
+
+            // 🎙️ Texto de narración
             const narrationText = `
 ${question}
 
@@ -169,31 +189,31 @@ D) ${options[3]}
 
             console.log(`🎙 Generando audio pregunta ${id_question}`);
 
-            // 🔹 Generar narración
+            // 🔊 Generar audio
             const audioBuffer = await elevenLabsTTS(narrationText);
 
-            // 🔹 Subir narración
+            // ☁️ Subir a Cloudinary
             const uploadResult = await uploadAudioToCloudinary(
                 audioBuffer,
                 `question_${id_question}_${Date.now()}`
             );
 
-            // 🔹 Duración aproximada
+            // ⏱️ Duración estimada
             const wordCount = narrationText.split(/\s+/).length;
             const narrationSeconds = Math.ceil((wordCount / 150) * 60);
 
-            // ✅ AUDIO DE EXPLICACIÓN RESUELTO AQUÍ
+            // ✅ Audio de explicación correcto
             const explanationAudioUrl = EXPLANATION_AUDIOS[correctLetter];
 
             results.push({
                 question,
-                image: `https://media.autocheckapp.pe/1M4G3QU1Z/${imagePath}`,
+                image, // 👈 siempre presente, pero vacío si no hay
                 options,
                 correctIndex,
                 countdownSeconds: narrationSeconds + 5,
                 revealSeconds: 2,
                 narrationUrl: uploadResult.secure_url,
-                explanationAudioUrl // 👈 YA RESUELTO
+                explanationAudioUrl
             });
         }
 
@@ -207,6 +227,7 @@ D) ${options[3]}
         });
     }
 });
+
 
 
 
